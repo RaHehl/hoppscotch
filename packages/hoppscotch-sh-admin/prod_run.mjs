@@ -1,7 +1,20 @@
 #!/usr/local/bin/node
-import { execSync, spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import process from 'process';
+
+// Caddy bind port — when set, must be an unprivileged integer (1024-65535).
+const altPort = process.env.HOPP_ALTERNATE_PORT;
+if (altPort !== undefined && !(/^[0-9]+$/.test(altPort) && +altPort >= 1024 && +altPort <= 65535)) {
+  console.error(
+    `HOPP_ALTERNATE_PORT="${altPort}" is invalid: it must be an integer between 1024 and 65535 ` +
+      `(e.g. 8000). Privileged ports < 1024 cannot be bound by a non-root user. Avoid ports used by ` +
+      `internal services: 8080 (backend), 3200 (webapp server), 3000/3100/3170 (Caddy).`
+  );
+  process.exit(1);
+}
 
 function runChildProcessWithPrefix(command, args, prefix) {
   const childProcess = spawn(command, args);
@@ -41,11 +54,17 @@ const envFileContent = Object.entries(process.env)
   )
   .join('\n');
 
-fs.writeFileSync('build.env', envFileContent);
+// Write to a temp dir (not cwd) so a non-root UID needn't own the working directory.
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hopp-env-'));
+const buildEnvPath = path.join(tmpDir, 'build.env');
 
-execSync(`npx import-meta-env -x build.env -e build.env -p "/site/**/*"`);
-
-fs.rmSync('build.env');
+try {
+  fs.writeFileSync(buildEnvPath, envFileContent);
+  // Call the global binary directly (not npx, which needs a writable $HOME cache).
+  execFileSync('import-meta-env', ['-x', buildEnvPath, '-e', buildEnvPath, '-p', '/site/**/*'], { stdio: 'inherit' });
+} finally {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+}
 
 const caddyFileName =
   process.env.ENABLE_SUBPATH_BASED_ACCESS === 'true'
