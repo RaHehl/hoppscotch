@@ -4,16 +4,21 @@
 }
 
 :{$HOPP_ALTERNATE_PORT:80} {
-	# Serve the `selfhost-web` SPA by default
-	root * /site/selfhost-web
-	file_server
-
+	# Admin dashboard under `/admin*`
 	handle_path /admin* {
 		root * /site/sh-admin-subpath-access
-		file_server
-
-		# Ensures any non-existent file in the server is routed to the SPA
-		try_files {path} /
+		@asset {
+			file
+			not path / /index.html
+		}
+		handle @asset {
+			file_server
+		}
+		handle {
+			root * {$HOPP_RUNTIME_DIR:/tmp/hopp-site}/sh-admin-subpath-access
+			rewrite * /index.html
+			file_server
+		}
 	}
 
 	# Handle requests under `/backend*` path
@@ -21,12 +26,12 @@
 		@mock {
 			header_regexp host Host ^[^.]+\.mock\..*$
 		}
-		
+
 		handle @mock {
 			rewrite * /mock{uri}
 			reverse_proxy localhost:8080
 		}
-		
+
 		handle {
 			reverse_proxy localhost:8080
 		}
@@ -37,10 +42,22 @@
 		reverse_proxy localhost:3200
 	}
 
-	# Catch-all route for unknown paths, serves `selfhost-web` SPA
+	# Default: the `selfhost-web` SPA — immutable hashed assets from the read-only
+	# /site, and the runtime-env-rendered entry document (plus SPA fallbacks) from a
+	# writable directory.
 	handle {
 		root * /site/selfhost-web
-		file_server
-		try_files {path} /
+		@asset {
+			file
+			not path / /index.html
+		}
+		handle @asset {
+			file_server
+		}
+		handle {
+			root * {$HOPP_RUNTIME_DIR:/tmp/hopp-site}/selfhost-web
+			rewrite * /index.html
+			file_server
+		}
 	}
 }

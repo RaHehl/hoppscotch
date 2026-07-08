@@ -188,10 +188,6 @@ COPY --from=fe_builder /usr/src/app/packages/hoppscotch-selfhost-web/dist/ /site
 ENV XDG_DATA_HOME=/tmp
 ENV XDG_CONFIG_HOME=/tmp
 
-# Env injection rewrites /site in place; make it group-writable (GID 0) so a
-# non-root UID (OpenShift runs as GID 0) can write. No-op for root.
-RUN chgrp -R 0 /site && chmod -R g=rwX /site
-
 WORKDIR /site
 # Run both webapp-server and Caddy after env processing (NOTE: env processing is required by both)
 CMD ["/bin/sh", "-c", "node /site/prod_run.mjs && (webapp-server & caddy run --config /etc/caddy/selfhost-web.Caddyfile --adapter caddyfile)"]
@@ -222,10 +218,6 @@ COPY --from=sh_admin_builder /usr/src/app/packages/hoppscotch-sh-admin/dist-subp
 # Writable Caddy storage for non-root UIDs (no writable $HOME needed).
 ENV XDG_DATA_HOME=/tmp
 ENV XDG_CONFIG_HOME=/tmp
-
-# Env injection rewrites /site in place; make it group-writable (GID 0) so a
-# non-root UID (OpenShift runs as GID 0) can write. No-op for root.
-RUN chgrp -R 0 /site && chmod -R g=rwX /site
 
 WORKDIR /site
 CMD ["node","/site/prod_run.mjs"]
@@ -270,10 +262,6 @@ COPY aio-subpath-access.Caddyfile /etc/caddy/aio-subpath-access.Caddyfile
 # Writable Caddy storage for non-root UIDs (no writable $HOME needed).
 ENV XDG_DATA_HOME=/tmp
 ENV XDG_CONFIG_HOME=/tmp
-
-# Env injection rewrites /site in place; make it group-writable (GID 0) so a
-# non-root UID (OpenShift runs as GID 0) can write. No-op for root.
-RUN chgrp -R 0 /site && chmod -R g=rwX /site
 
 ENTRYPOINT [ "tini", "--" ]
 COPY --chmod=755 healthcheck.sh /

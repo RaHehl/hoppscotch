@@ -6,8 +6,23 @@
 :{$HOPP_ALTERNATE_PORT:80} :3100 {
 	handle_path /admin* {
 		root * /site/sh-admin-subpath-access
-		file_server
-		try_files {path} /
+
+		# Hashed assets are served immutably from the shipped, read-only /site.
+		@asset {
+			file
+			not path / /index.html
+		}
+		handle @asset {
+			file_server
+		}
+
+		# The entry document (and SPA fallbacks) is the runtime-env-rendered
+		# index.html from a writable directory, so /site is never written to.
+		handle {
+			root * {$HOPP_RUNTIME_DIR:/tmp/hopp-site}/sh-admin-subpath-access
+			rewrite * /index.html
+			file_server
+		}
 	}
 
 	handle {

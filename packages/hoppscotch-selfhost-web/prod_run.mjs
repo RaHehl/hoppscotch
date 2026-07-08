@@ -24,6 +24,14 @@ const envFileContent = Object.entries(process.env)
   )
   .join("\n")
 
+// Render the entry document's runtime env into a writable directory, leaving the
+// shipped assets in /site immutable (so the container can run with a read-only root
+// filesystem). Caddy serves the hashed assets from /site and this rendered
+// index.html; only index.html carries the @import-meta-env placeholder.
+const runtimeDir = `${process.env.HOPP_RUNTIME_DIR || "/tmp/hopp-site"}/selfhost-web`
+fs.mkdirSync(runtimeDir, { recursive: true })
+fs.copyFileSync("/site/selfhost-web/index.html", `${runtimeDir}/index.html`)
+
 // Write to a temp dir (not cwd) so a non-root UID needn't own the working directory.
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "hopp-env-"))
 const buildEnvPath = path.join(tmpDir, "build.env")
@@ -31,7 +39,7 @@ const buildEnvPath = path.join(tmpDir, "build.env")
 try {
   fs.writeFileSync(buildEnvPath, envFileContent)
   // Call the global binary directly (not npx, which needs a writable $HOME cache).
-  execFileSync("import-meta-env", ["-x", buildEnvPath, "-e", buildEnvPath, "-p", "/site/**/*"], { stdio: "inherit" })
+  execFileSync("import-meta-env", ["-x", buildEnvPath, "-e", buildEnvPath, "-p", `${runtimeDir}/index.html`], { stdio: "inherit" })
 } finally {
   fs.rmSync(tmpDir, { recursive: true, force: true })
 }

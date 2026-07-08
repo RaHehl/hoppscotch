@@ -97,6 +97,15 @@ func (b *Builder) Build(frontendPath string) ([]byte, []FileEntry, error) {
 		// normalize to forward slashes for cross-platform compat
 		normalizedPath := filepath.ToSlash(relPath)
 
+		// Materialise the runtime env in the entry document, matching what Caddy
+		// serves to the browser. All other files are shipped verbatim.
+		if normalizedPath == RuntimeEnvIndex {
+			content, err = renderRuntimeEnv(content)
+			if err != nil {
+				return fmt.Errorf("failed to inject runtime env into %s: %w", relPath, err)
+			}
+		}
+
 		header := &zip.FileHeader{
 			Name:   normalizedPath,
 			Method: ZipMethodZstd,
@@ -121,7 +130,7 @@ func (b *Builder) Build(frontendPath string) ([]byte, []FileEntry, error) {
 
 		files = append(files, FileEntry{
 			Path:     normalizedPath,
-			Size:     info.Size(),
+			Size:     int64(len(content)),
 			Hash:     base64.StdEncoding.EncodeToString(hash),
 			MimeType: mimeType,
 		})

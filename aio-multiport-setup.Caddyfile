@@ -4,15 +4,35 @@
 }
 
 :3000 {
-	try_files {path} /
 	root * /site/selfhost-web
-	file_server
+	@asset {
+		file
+		not path / /index.html
+	}
+	handle @asset {
+		file_server
+	}
+	handle {
+		root * {$HOPP_RUNTIME_DIR:/tmp/hopp-site}/selfhost-web
+		rewrite * /index.html
+		file_server
+	}
 }
 
 :3100 {
-	try_files {path} /
 	root * /site/sh-admin-multiport-setup
-	file_server
+	@asset {
+		file
+		not path / /index.html
+	}
+	handle @asset {
+		file_server
+	}
+	handle {
+		root * {$HOPP_RUNTIME_DIR:/tmp/hopp-site}/sh-admin-multiport-setup
+		rewrite * /index.html
+		file_server
+	}
 }
 
 :3170 {
