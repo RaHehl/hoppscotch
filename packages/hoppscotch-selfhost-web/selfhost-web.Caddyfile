@@ -3,7 +3,7 @@
   persist_config off
 }
 
-:80 :3000 {
+:{$HOPP_FRONTEND_PORT:80} :3000 {
 	try_files {path} /
 	root * /site/selfhost-web
 	file_server

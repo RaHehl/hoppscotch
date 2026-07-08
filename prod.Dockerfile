@@ -157,6 +157,11 @@ ENV PORT=8080
 
 WORKDIR /dist/backend
 
+# Writable HOME so Caddy's storage works when the image is run under an arbitrary
+# (non-root) UID (e.g. OpenShift restricted SCC), where the home dir is otherwise
+# not writable. The UID itself is chosen by the deployment (pod securityContext).
+ENV HOME=/tmp
+
 CMD ["node", "prod_run.mjs"]
 EXPOSE 80
 EXPOSE 3170
@@ -181,6 +186,14 @@ COPY --from=fe_builder /usr/src/app/packages/hoppscotch-selfhost-web/selfhost-we
 COPY --from=fe_builder /usr/src/app/packages/hoppscotch-selfhost-web/dist/ /site/selfhost-web
 
 WORKDIR /site
+
+# Make the site group-writable (root group) for the startup import-meta-env
+# rewrite and give a writable HOME, so the image can run under an arbitrary
+# (non-root) UID (e.g. OpenShift restricted SCC). Defaults stay root-compatible;
+# the UID is chosen by the deployment (pod securityContext).
+RUN chgrp -R 0 /site && chmod -R g=rwX /site
+ENV HOME=/tmp
+
 # Run both webapp-server and Caddy after env processing (NOTE: env processing is required by both)
 CMD ["/bin/sh", "-c", "node /site/prod_run.mjs && (webapp-server & caddy run --config /etc/caddy/selfhost-web.Caddyfile --adapter caddyfile)"]
 
@@ -208,6 +221,12 @@ COPY --from=sh_admin_builder /usr/src/app/packages/hoppscotch-sh-admin/dist-mult
 COPY --from=sh_admin_builder /usr/src/app/packages/hoppscotch-sh-admin/dist-subpath-access /site/sh-admin-subpath-access
 
 WORKDIR /site
+
+# Group-writable site + writable HOME so the image can run under an arbitrary
+# (non-root) UID (OpenShift restricted SCC); the UID is chosen by the deployment.
+RUN chgrp -R 0 /site && chmod -R g=rwX /site
+ENV HOME=/tmp
+
 CMD ["node","/site/prod_run.mjs"]
 
 EXPOSE 80
